@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settle My PCP — Ads Dashboard</title>
+  <!-- Live data written by meta_fetch.py. Falls back to static sample data below. -->
+  <script src="data.js" onerror="window._dataJsMissing=true"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%);
+      border-bottom: 1px solid #2d3748;
+      padding: 24px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+    header h1 span { color: #7c3aed; }
+    .date-badge {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    /* ── Layout ── */
+    main { padding: 28px 32px; max-width: 1400px; margin: 0 auto; }
+
+    /* ── KPI Cards ── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .kpi {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .kpi.purple::before { background: linear-gradient(90deg, #7c3aed, #a855f7); }
+    .kpi.blue::before   { background: linear-gradient(90deg, #2563eb, #3b82f6); }
+    .kpi.green::before  { background: linear-gradient(90deg, #059669, #10b981); }
+    .kpi.amber::before  { background: linear-gradient(90deg, #d97706, #f59e0b); }
+    .kpi.pink::before   { background: linear-gradient(90deg, #db2777, #ec4899); }
+    .kpi.teal::before   { background: linear-gradient(90deg, #0891b2, #06b6d4); }
+
+    .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #f1f5f9;
+      line-height: 1;
+    }
+    .kpi-sub {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 6px;
+    }
+
+    /* ── Charts Grid ── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+    .chart-card {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .chart-card.wide {
+      grid-column: 1 / -1;
+    }
+    .chart-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chart-title::before {
+      content: '';
+      display: inline-block;
+      width: 3px;
+      height: 14px;
+      background: #7c3aed;
+      border-radius: 2px;
+    }
+    .chart-wrap { position: relative; height: 260px; }
+    .chart-wrap.tall { height: 320px; }
+
+    /* ── Table ── */
+    .table-card {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 28px;
+    }
+    .table-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #2d3748;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .table-header .chart-title { margin: 0; }
+    .filter-row {
+      display: flex;
+      gap: 8px;
+    }
+    .filter-btn {
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-btn.active, .filter-btn:hover {
+      background: #7c3aed;
+      border-color: #7c3aed;
+      color: #fff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    thead th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #64748b;
+      background: #151a27;
+      border-bottom: 1px solid #2d3748;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    thead th:hover { color: #a78bfa; }
+    thead th.sorted { color: #a78bfa; }
+    thead th .sort-icon { margin-left: 4px; opacity: 0.5; }
+    thead th.sorted .sort-icon { opacity: 1; }
+    tbody tr {
+      border-bottom: 1px solid #1e293b;
+      transition: background 0.1s;
+    }
+    tbody tr:hover { background: #1e293b; }
+    tbody td {
+      padding: 11px 16px;
+      color: #cbd5e1;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge.active   { background: #064e3b; color: #34d399; }
+    .badge.inactive { background: #1e293b; color: #64748b; }
+    .badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .good  { color: #34d399; }
+    .warn  { color: #f59e0b; }
+    .bad   { color: #f87171; }
+    .muted { color: #475569; }
+    .bar-cell { display: flex; align-items: center; gap: 8px; }
+    .mini-bar {
+      height: 4px;
+      border-radius: 2px;
+      background: #7c3aed;
+      min-width: 2px;
+      transition: width 0.3s;
+    }
+
+    /* ── Insight strip ── */
+    .insights {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .insight {
+      background: #1a1f2e;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .insight-icon {
+      font-size: 22px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .insight-title { font-size: 12px; color: #64748b; margin-bottom: 3px; }
+    .insight-body  { font-size: 14px; color: #e2e8f0; font-weight: 500; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      header, main { padding: 16px; }
+      .charts-grid { grid-template-columns: 1fr; }
+      .chart-card.wide { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Settle My PCP <span>·</span> Ads Performance</h1>
+    <div style="font-size:13px;color:#64748b;margin-top:4px;" id="headerSub">Facebook Ads</div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+    <div class="date-badge" id="dateRange">Loading…</div>
+    <div id="lastUpdated" style="font-size:11px;color:#475569;"></div>
+  </div>
+</header>
+
+<main>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- Insight Strip -->
+  <div class="insights" id="insightStrip"></div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card wide">
+      <div class="chart-title">Conversions & Cost per Lead — by Ad</div>
+      <div class="chart-wrap tall"><canvas id="cplChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Click-Through Rate (CTR) by Ad</div>
+      <div class="chart-wrap"><canvas id="ctrChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Spend Distribution</div>
+      <div class="chart-wrap"><canvas id="spendChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-header">
+      <div class="chart-title">All Ads — Full Breakdown</div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="filterTable('all', this)">All</button>
+        <button class="filter-btn" onclick="filterTable('active', this)">Active</button>
+        <button class="filter-btn" onclick="filterTable('converting', this)">Converting</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="adsTable">
+        <thead>
+          <tr>
+            <th onclick="sortTable('name')">Ad <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('status')">Status <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('spend')">Spend <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('impressions')">Impressions <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('linkClicks')">Link Clicks <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('ctr')">CTR <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('conversions')">Conversions <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('cpl')">CPL <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable('cpm')">CPM <span class="sort-icon">↕</span></th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── Static fallback data (used when data.js hasn't been generated yet) ──
+const FALLBACK_DATA = {
+  ads: [
+    {name:"Ad 13",status:"active",  spend:3212.06,conversions:88,reach:19858,impressions:39927,linkClicks:769,ctr:1.926015,cpl:36.50,cpm:80.45,lpv:662},
+    {name:"Ad 3", status:"active",  spend:437.18, conversions:7, reach:5603, impressions:7716, linkClicks:85, ctr:1.101607,cpl:62.45,cpm:56.66,lpv:68},
+    {name:"Ad 1", status:"inactive",spend:773.17, conversions:12,reach:5141, impressions:10212,linkClicks:431,ctr:4.59,    cpl:64.43,cpm:75.72,lpv:292},
+    {name:"Ad 5", status:"inactive",spend:133.80, conversions:2, reach:990,  impressions:1287, linkClicks:45, ctr:3.496504,cpl:66.90,cpm:103.96,lpv:32},
+    {name:"Ad 21",status:"inactive",spend:72.14,  conversions:1, reach:1292, impressions:1398, linkClicks:12, ctr:0.858369,cpl:72.14,cpm:51.60,lpv:11},
+    {name:"Ad 2", status:"active",  spend:71.77,  conversions:3, reach:527,  impressions:821,  linkClicks:48, ctr:5.846529,cpl:23.92,cpm:87.42,lpv:27},
+    {name:"Ad 25",status:"inactive",spend:53.96,  conversions:1, reach:1115, impressions:1244, linkClicks:11, ctr:0.884244,cpl:53.96,cpm:43.38,lpv:11},
+    {name:"Ad 14",status:"inactive",spend:43.07,  conversions:0, reach:395,  impressions:475,  linkClicks:14, ctr:2.947368,cpl:null, cpm:90.67,lpv:9},
+    {name:"Ad 17",status:"active",  spend:29.17,  conversions:1, reach:313,  impressions:400,  linkClicks:17, ctr:4.25,    cpl:29.17,cpm:72.93,lpv:14},
+    {name:"Ad 11",status:"inactive",spend:26.48,  conversions:0, reach:230,  impressions:284,  linkClicks:3,  ctr:1.056338,cpl:null, cpm:93.24,lpv:3},
+    {name:"Ad 4", status:"inactive",spend:23.61,  conversions:0, reach:273,  impressions:342,  linkClicks:3,  ctr:0.877193,cpl:null, cpm:69.04,lpv:3},
+    {name:"Ad 12",status:"active",  spend:12.27,  conversions:0, reach:237,  impressions:300,  linkClicks:4,  ctr:1.333333,cpl:null, cpm:40.90,lpv:3},
+    {name:"Ad 22",status:"inactive",spend:11.29,  conversions:0, reach:68,   impressions:84,   linkClicks:2,  ctr:2.380952,cpl:null, cpm:134.40,lpv:2},
+    {name:"Ad 9", status:"inactive",spend:7.29,   conversions:0, reach:234,  impressions:240,  linkClicks:2,  ctr:0.833333,cpl:null, cpm:30.38,lpv:2},
+    {name:"Ad 7", status:"active",  spend:34.95,  conversions:0, reach:329,  impressions:479,  linkClicks:20, ctr:4.175365,cpl:null, cpm:72.96,lpv:16},
+    {name:"Ad 8", status:"inactive",spend:13.54,  conversions:0, reach:360,  impressions:414,  linkClicks:9,  ctr:2.173913,cpl:null, cpm:32.71,lpv:1},
+    {name:"Ad 20",status:"inactive",spend:2.04,   conversions:0, reach:56,   impressions:70,   linkClicks:0,  ctr:0,       cpl:null, cpm:29.14,lpv:0},
+  ],
+  meta: {
+    last_updated: null,
+    since: "2026-03-06",
+    until: "2026-04-05",
+  }
+};
+
+// ── Load data — prefer live data.js, fall back to static ──
+const source = (window.DASHBOARD_DATA && window.DASHBOARD_DATA.ads && window.DASHBOARD_DATA.ads.length)
+  ? window.DASHBOARD_DATA
+  : FALLBACK_DATA;
+
+const isLive = source !== FALLBACK_DATA;
+
+// ── Populate header ──
+const dateMeta = source.meta;
+const fmtDate  = iso => new Date(iso + (iso.length === 10 ? 'T00:00:00' : '')).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+document.getElementById('dateRange').textContent = `${fmtDate(dateMeta.since)} → ${fmtDate(dateMeta.until)}`;
+
+if (isLive && dateMeta.last_updated) {
+  const updated = new Date(dateMeta.last_updated);
+  document.getElementById('lastUpdated').textContent = `Live data · updated ${updated.toLocaleDateString('en-GB',{day:'numeric',month:'short'})} at ${updated.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}`;
+} else {
+  document.getElementById('lastUpdated').innerHTML = `<span style="color:#d97706">⚠ Sample data — run meta_fetch.py to load live data</span>`;
+}
+
+document.getElementById('headerSub').textContent = `Facebook Ads — ${source.ads.length} ads`;
+
+const ads = source.ads.sort((a,b) => b.spend - a.spend);
+
+// ── Totals ──
+const totSpend       = ads.reduce((s,a) => s + a.spend, 0);
+const totConversions = ads.reduce((s,a) => s + a.conversions, 0);
+const totImpressions = ads.reduce((s,a) => s + a.impressions, 0);
+const totClicks      = ads.reduce((s,a) => s + a.linkClicks, 0);
+const avgCPL         = totSpend / totConversions;
+const overallCTR     = (totClicks / totImpressions) * 100;
+const bestCPL        = ads.filter(a=>a.cpl).sort((a,b)=>a.cpl-b.cpl)[0];
+const bestCTR        = [...ads].sort((a,b)=>b.ctr-a.ctr)[0];
+
+// ── KPI Cards ──
+const kpis = [
+  { label:'Total Spend', value:'£' + totSpend.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}), sub:'31-day period', color:'purple' },
+  { label:'Conversions', value:totConversions, sub:'form registrations', color:'green' },
+  { label:'Avg Cost / Lead', value:'£' + avgCPL.toFixed(2), sub:'overall blended CPL', color:'blue' },
+  { label:'Impressions', value:totImpressions.toLocaleString(), sub:'total ad views', color:'teal' },
+  { label:'Link Clicks', value:totClicks.toLocaleString(), sub:'overall CTR ' + overallCTR.toFixed(2) + '%', color:'amber' },
+  { label:'Best CPL', value:'£' + bestCPL.cpl.toFixed(2), sub:bestCPL.name + ' — lowest cost/lead', color:'pink' },
+];
+const kpiGrid = document.getElementById('kpiGrid');
+kpis.forEach(k => {
+  kpiGrid.innerHTML += `
+    <div class="kpi ${k.color}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`;
+});
+
+// ── Insights ──
+const convertingAds = ads.filter(a => a.conversions > 0);
+const nonConvertingSpend = ads.filter(a=>a.conversions===0).reduce((s,a)=>s+a.spend,0);
+const ad13share = (ads.find(a=>a.name==='Ad 13').spend / totSpend * 100).toFixed(0);
+
+const insightStrip = document.getElementById('insightStrip');
+[
+  { icon:'🏆', title:'Best performing ad', body:`Ad 2 has the lowest CPL at £23.92 with a strong CTR of 5.85%` },
+  { icon:'⚡', title:'Volume leader', body:`Ad 13 drove 88 of ${totConversions} total conversions (${Math.round(88/totConversions*100)}%) — consuming ${ad13share}% of spend` },
+  { icon:'⚠️', title:'Spend with no conversions', body:`£${nonConvertingSpend.toFixed(2)} spent across ${ads.filter(a=>a.conversions===0).length} ads that generated zero leads` },
+  { icon:'📈', title:'Highest CTR', body:`${bestCTR.name} has the highest CTR at ${bestCTR.ctr.toFixed(2)}% — strong creative engagement` },
+].forEach(i => {
+  insightStrip.innerHTML += `
+    <div class="insight">
+      <div class="insight-icon">${i.icon}</div>
+      <div>
+        <div class="insight-title">${i.title}</div>
+        <div class="insight-body">${i.body}</div>
+      </div>
+    </div>`;
+});
+
+// ── Chart helpers ──
+const PURPLE = 'rgba(124,58,237,0.85)';
+const BLUE   = 'rgba(37,99,235,0.85)';
+const GREEN  = 'rgba(16,185,129,0.85)';
+const AMBER  = 'rgba(245,158,11,0.85)';
+const GRID   = 'rgba(255,255,255,0.05)';
+const TEXT   = '#64748b';
+
+const baseOpts = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: TEXT, font: { size: 12 } } } },
+  scales: {
+    x: { grid: { color: GRID }, ticks: { color: TEXT } },
+    y: { grid: { color: GRID }, ticks: { color: TEXT } },
+  }
+};
+
+// ── CPL Chart (conversions bar + CPL line) ──
+const cplAds = ads.filter(a => a.conversions > 0).sort((a,b) => b.conversions - a.conversions);
+new Chart(document.getElementById('cplChart'), {
+  data: {
+    labels: cplAds.map(a => a.name),
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Conversions',
+        data: cplAds.map(a => a.conversions),
+        backgroundColor: cplAds.map(a => a.status==='active' ? PURPLE : 'rgba(124,58,237,0.4)'),
+        borderRadius: 6,
+        yAxisID: 'y',
+      },
+      {
+        type: 'line',
+        label: 'Cost per Lead (£)',
+        data: cplAds.map(a => a.cpl ? +a.cpl.toFixed(2) : null),
+        borderColor: AMBER,
+        backgroundColor: 'rgba(245,158,11,0.1)',
+        pointBackgroundColor: AMBER,
+        pointRadius: 5,
+        tension: 0.35,
+        yAxisID: 'y2',
+      }
+    ]
+  },
+  options: {
+    ...baseOpts,
+    scales: {
+      x: { grid:{color:GRID}, ticks:{color:TEXT} },
+      y:  { grid:{color:GRID}, ticks:{color:TEXT, callback: v => v}, title:{display:true,text:'Conversions',color:TEXT} },
+      y2: { position:'right', grid:{drawOnChartArea:false}, ticks:{color:AMBER, callback: v=>'£'+v}, title:{display:true,text:'CPL (£)',color:AMBER} }
+    },
+    plugins: {
+      legend: { labels:{color:'#94a3b8', font:{size:12}} },
+      tooltip: {
+        callbacks: {
+          label: ctx => ctx.dataset.label === 'Cost per Lead (£)'
+            ? ` £${ctx.parsed.y}`
+            : ` ${ctx.parsed.y} conversions`
+        }
+      }
+    }
+  }
+});
+
+// ── CTR Chart ──
+const ctrSorted = [...ads].sort((a,b)=>b.ctr-a.ctr);
+new Chart(document.getElementById('ctrChart'), {
+  type: 'bar',
+  data: {
+    labels: ctrSorted.map(a=>a.name),
+    datasets: [{
+      label: 'CTR (%)',
+      data: ctrSorted.map(a=>+a.ctr.toFixed(3)),
+      backgroundColor: ctrSorted.map(a => a.ctr >= 3 ? GREEN : a.ctr >= 1.5 ? BLUE : 'rgba(100,116,139,0.5)'),
+      borderRadius: 5,
+    }]
+  },
+  options: {
+    ...baseOpts,
+    indexAxis: 'y',
+    scales: {
+      x: { grid:{color:GRID}, ticks:{color:TEXT, callback: v=>v+'%'} },
+      y: { grid:{color:GRID}, ticks:{color:TEXT} }
+    },
+    plugins: {
+      legend: { display:false },
+      tooltip: { callbacks: { label: ctx => ` CTR: ${ctx.parsed.x.toFixed(2)}%` } }
+    }
+  }
+});
+
+// ── Spend Doughnut ──
+const TOP_N = 6;
+const spendSorted = [...ads].sort((a,b)=>b.spend-a.spend);
+const topAds = spendSorted.slice(0, TOP_N);
+const othersSpend = spendSorted.slice(TOP_N).reduce((s,a)=>s+a.spend,0);
+const doughLabels = [...topAds.map(a=>a.name), 'Others'];
+const doughData   = [...topAds.map(a=>a.spend), othersSpend];
+const PALETTE = ['#7c3aed','#2563eb','#059669','#d97706','#db2777','#0891b2','#475569'];
+
+new Chart(document.getElementById('spendChart'), {
+  type: 'doughnut',
+  data: {
+    labels: doughLabels,
+    datasets: [{
+      data: doughData,
+      backgroundColor: PALETTE,
+      borderColor: '#0f1117',
+      borderWidth: 3,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '62%',
+    plugins: {
+      legend: { position:'right', labels:{color:'#94a3b8', font:{size:12}, padding:14} },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` £${ctx.parsed.toFixed(2)} (${(ctx.parsed/totSpend*100).toFixed(1)}%)`
+        }
+      }
+    }
+  }
+});
+
+// ── Table ──
+let tableData    = [...ads];
+let sortKey      = 'spend';
+let sortAsc      = false;
+let activeFilter = 'all';
+
+const maxSpend = Math.max(...ads.map(a=>a.spend));
+
+function renderTable() {
+  let data = [...tableData];
+  if (activeFilter === 'active')     data = data.filter(a=>a.status==='active');
+  if (activeFilter === 'converting') data = data.filter(a=>a.conversions>0);
+
+  data.sort((a,b) => {
+    const av = a[sortKey] ?? -1;
+    const bv = b[sortKey] ?? -1;
+    return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+  });
+
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = data.map(a => {
+    const barW = Math.round((a.spend / maxSpend) * 100);
+    const cplColor = !a.cpl ? 'muted' : a.cpl < 35 ? 'good' : a.cpl < 65 ? 'warn' : 'bad';
+    const ctrColor = a.ctr >= 3 ? 'good' : a.ctr >= 1.5 ? 'warn' : 'muted';
+    return `<tr>
+      <td><strong>${a.name}</strong></td>
+      <td><span class="badge ${a.status}"><span class="badge-dot"></span>${a.status}</span></td>
+      <td>
+        <div class="bar-cell">
+          <div class="mini-bar" style="width:${barW}px"></div>
+          £${a.spend.toFixed(2)}
+        </div>
+      </td>
+      <td>${a.impressions.toLocaleString()}</td>
+      <td>${a.linkClicks.toLocaleString()}</td>
+      <td class="${ctrColor}">${a.ctr.toFixed(2)}%</td>
+      <td>${a.conversions > 0 ? `<strong>${a.conversions}</strong>` : '<span class="muted">—</span>'}</td>
+      <td class="${cplColor}">${a.cpl ? '£' + a.cpl.toFixed(2) : '<span class="muted">—</span>'}</td>
+      <td class="muted">£${a.cpm.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  // highlight sorted column header
+  document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
+  const idx = ['name','status','spend','impressions','linkClicks','ctr','conversions','cpl','cpm'];
+  const thEl = document.querySelectorAll('thead th')[idx.indexOf(sortKey)];
+  if (thEl) {
+    thEl.classList.add('sorted');
+    thEl.querySelector('.sort-icon').textContent = sortAsc ? '↑' : '↓';
+  }
+}
+
+function sortTable(key) {
+  if (sortKey === key) sortAsc = !sortAsc;
+  else { sortKey = key; sortAsc = false; }
+  renderTable();
+}
+
+function filterTable(type, btn) {
+  activeFilter = type;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+renderTable();
+</script>
+</body>
+</html>
