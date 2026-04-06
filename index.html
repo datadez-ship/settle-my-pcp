@@ -233,18 +233,18 @@ function renderTable(ads) {
     currentFilter==='active' ? a.status==='active' :
     a.conversions > 0
   );
-  // Show/hide campaign column
-  document.querySelectorAll('th:first-child, td:first-child').forEach(el => {
+  const campStyle = showCampCol ? '' : 'display:none';
+  document.querySelectorAll('th:first-child').forEach(el => {
     el.style.display = showCampCol ? '' : 'none';
   });
   document.getElementById('tableBody').innerHTML = filtered.map(a => `
     <tr>
-      <td>${a.campaign_name||''}</td>
+      <td style="${campStyle}">${a.campaign_name||''}</td>
       <td><strong>${a.name}</strong></td>
       <td><span class="status-pill ${a.status}">${a.status}</span></td>
       <td>£${a.spend.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
       <td>${a.impressions.toLocaleString()}</td>
-      <td>${(a.ctr*100).toFixed(2)}%</td>
+      <td>${a.ctr.toFixed(2)}%</td>
       <td>${a.conversions}</td>
       <td>${a.cpl!=null?'£'+a.cpl.toFixed(2):'—'}</td>
       <td>${a.cpm!=null?'£'+a.cpm.toFixed(2):'—'}</td>
