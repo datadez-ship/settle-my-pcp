@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settle My PCP — Master Ads Dashboard</title>
+<script src="data.js" onerror="window.__dataLoadFailed=true"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f7fa;color:#1a202c;min-height:100vh}
+  header{background:#1a202c;color:#fff;padding:20px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+  header h1{font-size:1.3rem;font-weight:700}
+  header .sub{font-size:0.8rem;opacity:.6;margin-top:2px}
+  .badge{padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600}
+  .badge.live{background:#22543d;color:#68d391}
+  .badge.fallback{background:#744210;color:#f6ad55}
+  .banner{background:#fffbeb;border-bottom:2px solid #f6ad55;padding:10px 32px;font-size:0.8rem;color:#92400e;display:none}
+  /* Campaign tabs */
+  .tabs-bar{background:#fff;border-bottom:2px solid #e2e8f0;padding:0 32px;display:flex;gap:4px;overflow-x:auto}
+  .tab-btn{padding:14px 20px;border:none;background:none;cursor:pointer;font-size:0.85rem;font-weight:500;color:#718096;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s}
+  .tab-btn:hover{color:#1a202c}
+  .tab-btn.active{color:#1a202c;border-bottom-color:#4299e1;font-weight:600}
+  .tab-btn.all-tab{color:#4299e1}
+  .tab-btn.all-tab.active{border-bottom-color:#4299e1}
+  /* Campaign overview cards */
+  .overview-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;padding:20px 32px;border-bottom:1px solid #e2e8f0}
+  .camp-card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer;border:2px solid transparent;transition:all .15s}
+  .camp-card:hover{border-color:#4299e1}
+  .camp-card.selected{border-color:#4299e1;background:#ebf8ff}
+  .camp-card .camp-name{font-size:0.82rem;font-weight:600;color:#1a202c;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .camp-card .camp-kpis{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .camp-card .ckpi{font-size:0.7rem;color:#718096}.camp-card .ckpi strong{display:block;font-size:0.9rem;color:#1a202c}
+  .camp-card .status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px}
+  .camp-card .status-dot.active{background:#48bb78}
+  .camp-card .status-dot.inactive{background:#fc8181}
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;padding:20px 32px 0}
+  .kpi{background:#fff;border-radius:10px;padding:18px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .kpi .label{font-size:0.72rem;text-transform:uppercase;letter-spacing:.05em;color:#718096;margin-bottom:6px}
+  .kpi .value{font-size:1.6rem;font-weight:700;color:#1a202c}
+  .kpi .value.good{color:#276749}
+  /* Charts */
+  .charts{display:grid;grid-template-columns:2fr 1fr;gap:20px;padding:20px 32px}
+  .chart-box{background:#fff;border-radius:10px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .chart-box h3{font-size:0.82rem;font-weight:600;color:#4a5568;margin-bottom:14px;text-transform:uppercase;letter-spacing:.04em}
+  /* Table */
+  .table-wrap{background:#fff;border-radius:10px;padding:20px;margin:0 32px 32px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .table-wrap h3{font-size:0.82rem;font-weight:600;color:#4a5568;margin-bottom:14px;text-transform:uppercase;letter-spacing:.04em}
+  table{width:100%;border-collapse:collapse;font-size:0.8rem}
+  th{background:#f7fafc;padding:10px 12px;text-align:left;font-weight:600;color:#4a5568;border-bottom:2px solid #e2e8f0;white-space:nowrap}
+  td{padding:9px 12px;border-bottom:1px solid #edf2f7;vertical-align:middle}
+  tr:hover td{background:#f7fafc}
+  .status-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600}
+  .status-pill.active{background:#c6f6d5;color:#276749}
+  .status-pill.inactive{background:#fed7d7;color:#9b2c2c}
+  .filters{display:flex;gap:8px;margin-bottom:14px}
+  .filter-btn{padding:5px 14px;border-radius:20px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:0.78rem;color:#4a5568}
+  .filter-btn.active{background:#1a202c;color:#fff;border-color:#1a202c}
+  footer{text-align:center;padding:20px;color:#a0aec0;font-size:0.75rem}
+  @media(max-width:768px){.charts{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<div class="banner" id="fallback-banner">
+  ⚠ Showing cached data — run <code>python3 meta_fetch.py</code> to refresh live data
+</div>
+
+<header>
+  <div>
+    <h1>Settle My PCP — Ads Dashboard</h1>
+    <div class="sub" id="header-sub">Loading…</div>
+  </div>
+  <span class="badge" id="live-badge">●</span>
+</header>
+
+<div class="tabs-bar" id="tabs-bar">
+  <button class="tab-btn all-tab active" onclick="selectCampaign('all',this)">All Campaigns</button>
+</div>
+
+<div class="overview-grid" id="overview-grid" style="display:none"></div>
+
+<div class="kpis" id="kpis"></div>
+<div class="charts">
+  <div class="chart-box"><h3>Conversions &amp; CPL by Ad</h3><canvas id="convChart" height="120"></canvas></div>
+  <div class="chart-box"><h3>Spend by Campaign</h3><canvas id="spendChart" height="120"></canvas></div>
+</div>
+<div class="table-wrap">
+  <h3>Ad Performance — <span id="table-title">All Campaigns</span></h3>
+  <div class="filters">
+    <button class="filter-btn active" onclick="filterTable('all',this)">All</button>
+    <button class="filter-btn" onclick="filterTable('active',this)">Active</button>
+    <button class="filter-btn" onclick="filterTable('converting',this)">Converting</button>
+  </div>
+  <table><thead><tr>
+    <th>Campaign</th><th>Ad Name</th><th>Status</th><th>Spend</th>
+    <th>Impressions</th><th>CTR %</th><th>Conversions</th><th>CPL</th><th>CPM</th>
+  </tr></thead><tbody id="tableBody"></tbody></table>
+</div>
+<footer id="footer">Last updated: —</footer>
+
+<script>
+const FALLBACK = {"meta": {"last_updated": null, "since": "2026-03-07", "until": "2026-04-06", "mode": "multi_campaign"}, "campaigns": [{"campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "active", "spend": 4962.0, "impressions": 65727, "reach": 39125, "linkClicks": 1476, "conversions": 115, "ads": [{"ad_id": "120240329279890179", "name": "Ad 13", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "active", "spend": 3215.97, "impressions": 39958, "reach": 19858, "linkClicks": 770, "conversions": 88, "ctr": 1.927023, "cpl": 36.55, "cpm": 80.48, "cpc": 4.18, "lpv": 0}, {"ad_id": "120240329279860179", "name": "Ad 1", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 717.97, "impressions": 8033, "reach": 5141, "linkClicks": 415, "conversions": 11, "ctr": 5.166189, "cpl": 65.27, "cpm": 89.38, "cpc": 1.73, "lpv": 0}, {"ad_id": "120240329280000179", "name": "Ad 3", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "active", "spend": 437.41, "impressions": 7718, "reach": 5603, "linkClicks": 85, "conversions": 7, "ctr": 1.101322, "cpl": 62.49, "cpm": 56.67, "cpc": 5.15, "lpv": 0}, {"ad_id": "120240329279880179", "name": "Ad 5", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 133.8, "impressions": 1287, "reach": 990, "linkClicks": 45, "conversions": 2, "ctr": 3.496504, "cpl": 66.9, "cpm": 103.96, "cpc": 2.97, "lpv": 0}, {"ad_id": "120240329279940179", "name": "Ad 21", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 72.14, "impressions": 1398, "reach": 1292, "linkClicks": 12, "conversions": 1, "ctr": 0.858369, "cpl": 72.14, "cpm": 51.6, "cpc": 6.01, "lpv": 0}, {"ad_id": "120240329279980179", "name": "Ad 2", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "active", "spend": 71.77, "impressions": 821, "reach": 527, "linkClicks": 48, "conversions": 3, "ctr": 5.846529, "cpl": 23.92, "cpm": 87.42, "cpc": 1.5, "lpv": 0}, {"ad_id": "120240329279840179", "name": "Ad 1", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 55.2, "impressions": 2179, "reach": 2103, "linkClicks": 16, "conversions": 1, "ctr": 0.734282, "cpl": 55.2, "cpm": 25.33, "cpc": 3.45, "lpv": 0}, {"ad_id": "120240329279990179", "name": "Ad 25", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 53.96, "impressions": 1244, "reach": 1115, "linkClicks": 11, "conversions": 1, "ctr": 0.884244, "cpl": 53.96, "cpm": 43.38, "cpc": 4.91, "lpv": 0}, {"ad_id": "120240329279900179", "name": "Ad 14", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 43.07, "impressions": 475, "reach": 395, "linkClicks": 14, "conversions": 0, "ctr": 2.947368, "cpl": null, "cpm": 90.67, "cpc": 3.08, "lpv": 0}, {"ad_id": "120240329279850179", "name": "Ad 7", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "active", "spend": 34.95, "impressions": 479, "reach": 329, "linkClicks": 20, "conversions": 0, "ctr": 4.175365, "cpl": null, "cpm": 72.96, "cpc": 1.75, "lpv": 0}, {"ad_id": "120240329279970179", "name": "Ad 17", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "active", "spend": 29.24, "impressions": 401, "reach": 314, "linkClicks": 17, "conversions": 1, "ctr": 4.239402, "cpl": 29.24, "cpm": 72.92, "cpc": 1.72, "lpv": 0}, {"ad_id": "120240329279950179", "name": "Ad 11", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 26.48, "impressions": 284, "reach": 230, "linkClicks": 3, "conversions": 0, "ctr": 1.056338, "cpl": null, "cpm": 93.24, "cpc": 8.83, "lpv": 0}, {"ad_id": "120240329280010179", "name": "Ad 4", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 23.61, "impressions": 342, "reach": 273, "linkClicks": 3, "conversions": 0, "ctr": 0.877193, "cpl": null, "cpm": 69.04, "cpc": 7.87, "lpv": 0}, {"ad_id": "120240329279870179", "name": "Ad 8", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 13.54, "impressions": 414, "reach": 360, "linkClicks": 9, "conversions": 0, "ctr": 2.173913, "cpl": null, "cpm": 32.71, "cpc": 1.5, "lpv": 0}, {"ad_id": "120240329279930179", "name": "Ad 12", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "active", "spend": 12.27, "impressions": 300, "reach": 237, "linkClicks": 4, "conversions": 0, "ctr": 1.333333, "cpl": null, "cpm": 40.9, "cpc": 3.07, "lpv": 0}, {"ad_id": "120240329279910179", "name": "Ad 22", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 11.29, "impressions": 84, "reach": 68, "linkClicks": 2, "conversions": 0, "ctr": 2.380952, "cpl": null, "cpm": 134.4, "cpc": 5.64, "lpv": 0}, {"ad_id": "120240329279920179", "name": "Ad 9", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 7.29, "impressions": 240, "reach": 234, "linkClicks": 2, "conversions": 0, "ctr": 0.833333, "cpl": null, "cpm": 30.38, "cpc": 3.65, "lpv": 0}, {"ad_id": "120240329279960179", "name": "Ad 20", "campaign_id": "120240329262770179", "campaign_name": "27/2/26 - PCP Second Test", "status": "inactive", "spend": 2.04, "impressions": 70, "reach": 56, "linkClicks": 0, "conversions": 0, "ctr": 0.0, "cpl": null, "cpm": 29.14, "cpc": null, "lpv": 0}], "ctr": 2.2457, "cpl": 43.15, "cpm": 75.49}, {"campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 855.44, "impressions": 21179, "reach": 16599, "linkClicks": 827, "conversions": 17, "ads": [{"ad_id": "120240117373720179", "name": "Ad 1", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 363.68, "impressions": 6213, "reach": 4628, "linkClicks": 202, "conversions": 8, "ctr": 3.251247, "cpl": 45.46, "cpm": 58.54, "cpc": 1.8, "lpv": 0}, {"ad_id": "120240184013320179", "name": "Ad 3", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 81.23, "impressions": 2997, "reach": 2519, "linkClicks": 64, "conversions": 3, "ctr": 2.135469, "cpl": 27.08, "cpm": 27.1, "cpc": 1.27, "lpv": 0}, {"ad_id": "120240184013420179", "name": "Ad 21", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 73.37, "impressions": 1806, "reach": 1458, "linkClicks": 27, "conversions": 2, "ctr": 1.495017, "cpl": 36.69, "cpm": 40.63, "cpc": 2.72, "lpv": 0}, {"ad_id": "120240184013480179", "name": "Ad 13", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 73.33, "impressions": 1151, "reach": 909, "linkClicks": 45, "conversions": 2, "ctr": 3.909644, "cpl": 36.66, "cpm": 63.71, "cpc": 1.63, "lpv": 0}, {"ad_id": "120240184013470179", "name": "Ad 14", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 61.94, "impressions": 878, "reach": 700, "linkClicks": 35, "conversions": 1, "ctr": 3.986333, "cpl": 61.94, "cpm": 70.55, "cpc": 1.77, "lpv": 0}, {"ad_id": "120240184013440179", "name": "Ad 5", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 32.08, "impressions": 970, "reach": 847, "linkClicks": 32, "conversions": 1, "ctr": 3.298969, "cpl": 32.08, "cpm": 33.07, "cpc": 1.0, "lpv": 0}, {"ad_id": "120240184013500179", "name": "Ad 9", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 31.82, "impressions": 847, "reach": 678, "linkClicks": 25, "conversions": 0, "ctr": 2.951594, "cpl": null, "cpm": 37.57, "cpc": 1.27, "lpv": 0}, {"ad_id": "120240184013400179", "name": "Ad 22", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 30.24, "impressions": 356, "reach": 276, "linkClicks": 20, "conversions": 0, "ctr": 5.617978, "cpl": null, "cpm": 84.94, "cpc": 1.51, "lpv": 0}, {"ad_id": "120240184013310179", "name": "Ad 4", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 23.44, "impressions": 1463, "reach": 867, "linkClicks": 254, "conversions": 0, "ctr": 17.361586, "cpl": null, "cpm": 16.02, "cpc": 0.09, "lpv": 0}, {"ad_id": "120240184013370179", "name": "Ad 25", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 22.75, "impressions": 1617, "reach": 1472, "linkClicks": 7, "conversions": 0, "ctr": 0.4329, "cpl": null, "cpm": 14.07, "cpc": 3.25, "lpv": 0}, {"ad_id": "120240184013350179", "name": "Ad 11", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 17.05, "impressions": 791, "reach": 547, "linkClicks": 53, "conversions": 0, "ctr": 6.700379, "cpl": null, "cpm": 21.55, "cpc": 0.32, "lpv": 0}, {"ad_id": "120240184013540179", "name": "Ad 7", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 11.86, "impressions": 372, "reach": 200, "linkClicks": 31, "conversions": 0, "ctr": 8.333333, "cpl": null, "cpm": 31.88, "cpc": 0.38, "lpv": 0}, {"ad_id": "120240184013530179", "name": "Ad 8", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 8.98, "impressions": 223, "reach": 176, "linkClicks": 2, "conversions": 0, "ctr": 0.896861, "cpl": null, "cpm": 40.27, "cpc": 4.49, "lpv": 0}, {"ad_id": "120240184013430179", "name": "Ad 20", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 8.95, "impressions": 315, "reach": 264, "linkClicks": 5, "conversions": 0, "ctr": 1.587302, "cpl": null, "cpm": 28.41, "cpc": 1.79, "lpv": 0}, {"ad_id": "120240184013490179", "name": "Ad 12", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 6.18, "impressions": 650, "reach": 611, "linkClicks": 8, "conversions": 0, "ctr": 1.230769, "cpl": null, "cpm": 9.51, "cpc": 0.77, "lpv": 0}, {"ad_id": "120240184013300179", "name": "Ad 2", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 4.54, "impressions": 228, "reach": 197, "linkClicks": 6, "conversions": 0, "ctr": 2.631579, "cpl": null, "cpm": 19.91, "cpc": 0.76, "lpv": 0}, {"ad_id": "120240184013330179", "name": "Ad 17", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 3.98, "impressions": 297, "reach": 247, "linkClicks": 10, "conversions": 0, "ctr": 3.367003, "cpl": null, "cpm": 13.4, "cpc": 0.4, "lpv": 0}, {"ad_id": "120240184013520179", "name": "Ad 10", "campaign_id": "120240117373700179", "campaign_name": "PCP", "status": "inactive", "spend": 0.02, "impressions": 5, "reach": 3, "linkClicks": 1, "conversions": 0, "ctr": 20.0, "cpl": null, "cpm": 4.0, "cpc": 0.02, "lpv": 0}], "ctr": 3.9048, "cpl": 50.32, "cpm": 40.39}]};
+const src = (window.DASHBOARD_DATA && window.DASHBOARD_DATA.campaigns && window.DASHBOARD_DATA.campaigns.length)
+  ? window.DASHBOARD_DATA : FALLBACK;
+const isLive = src !== FALLBACK && !window.__dataLoadFailed;
+const allCampaigns = src.campaigns || [];
+const meta = src.meta;
+
+document.getElementById('live-badge').textContent = isLive ? '● Live' : '● Cached';
+document.getElementById('live-badge').className = 'badge ' + (isLive ? 'live' : 'fallback');
+if (!isLive) document.getElementById('fallback-banner').style.display = 'block';
+
+const fmt = d => d ? new Date(d.includes('T') ? d : d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—';
+document.getElementById('header-sub').textContent =
+  fmt(meta.since) + ' → ' + fmt(meta.until) + '  ·  ' + allCampaigns.length + ' campaigns';
+document.getElementById('footer').textContent =
+  'Last updated: ' + (meta.last_updated ? new Date(meta.last_updated).toLocaleString('en-GB') : '—');
+
+// Build campaign tabs dynamically
+const tabsBar = document.getElementById('tabs-bar');
+allCampaigns.forEach(c => {
+  const btn = document.createElement('button');
+  btn.className = 'tab-btn';
+  btn.dataset.id = c.campaign_id;
+  btn.textContent = c.campaign_name.length > 28 ? c.campaign_name.slice(0,28)+'…' : c.campaign_name;
+  btn.onclick = () => selectCampaign(c.campaign_id, btn);
+  tabsBar.appendChild(btn);
+});
+
+// Campaign overview cards
+function buildOverviewCards(campaigns) {
+  const grid = document.getElementById('overview-grid');
+  if (campaigns.length <= 1) { grid.style.display = 'none'; return; }
+  grid.style.display = 'grid';
+  grid.innerHTML = campaigns.map(c => {
+    const cpl = c.conversions > 0 ? '£'+(c.spend/c.conversions).toFixed(2) : '—';
+    return `<div class="camp-card" onclick="selectCampaign('${c.campaign_id}', document.querySelector('[data-id=\'${c.campaign_id}\']'))">
+      <div class="camp-name"><span class="status-dot ${c.status}"></span>${c.campaign_name}</div>
+      <div class="camp-kpis">
+        <div class="ckpi"><strong>£${c.spend.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</strong>Spend</div>
+        <div class="ckpi"><strong>${c.conversions}</strong>Conversions</div>
+        <div class="ckpi"><strong>${c.ctr.toFixed(2)}%</strong>CTR</div>
+        <div class="ckpi"><strong>${cpl}</strong>CPL</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let convChartInst = null, spendChartInst = null;
+let currentFilter = 'all';
+let currentCampaignId = 'all';
+
+const palette = ['#4299e1','#48bb78','#ed8936','#9f7aea','#f56565','#38b2ac','#d69e2e','#667eea','#fc8181','#68d391'];
+
+function selectCampaign(id, btn) {
+  currentCampaignId = id;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const camps = id === 'all' ? allCampaigns : allCampaigns.filter(c => c.campaign_id === id);
+  const ads   = camps.flatMap(c => c.ads || []);
+  document.getElementById('table-title').textContent = id === 'all'
+    ? 'All Campaigns'
+    : (camps[0]?.campaign_name || id);
+  buildOverviewCards(id === 'all' ? allCampaigns : []);
+  renderKPIs(ads);
+  renderCharts(ads, camps);
+  renderTable(ads);
+}
+
+function renderKPIs(ads) {
+  const t = ads.reduce((a,b) => ({
+    spend:a.spend+b.spend, impressions:a.impressions+b.impressions,
+    linkClicks:a.linkClicks+b.linkClicks, conversions:a.conversions+b.conversions
+  }),{spend:0,impressions:0,linkClicks:0,conversions:0});
+  const kpis = [
+    {l:'Total Spend',   v:'£'+t.spend.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})},
+    {l:'Impressions',   v:t.impressions.toLocaleString()},
+    {l:'Link Clicks',   v:t.linkClicks.toLocaleString()},
+    {l:'Conversions',   v:t.conversions},
+    {l:'Avg CTR',       v:(t.impressions>0?(t.linkClicks/t.impressions*100).toFixed(2):0)+'%'},
+    {l:'Avg CPL',       v:t.conversions>0?'£'+(t.spend/t.conversions).toFixed(2):'—', cls:'good'},
+  ];
+  document.getElementById('kpis').innerHTML = kpis.map(k =>
+    `<div class="kpi"><div class="label">${k.l}</div><div class="value ${k.cls||''}">${k.v}</div></div>`
+  ).join('');
+}
+
+function renderCharts(ads, camps) {
+  if (convChartInst) { convChartInst.destroy(); convChartInst = null; }
+  if (spendChartInst) { spendChartInst.destroy(); spendChartInst = null; }
+
+  const top = [...ads].sort((a,b)=>b.spend-a.spend).slice(0,8);
+  convChartInst = new Chart(document.getElementById('convChart'), {
+    type:'bar',
+    data:{
+      labels: top.map(a=>a.name.length>22?a.name.slice(0,22)+'…':a.name),
+      datasets:[
+        {type:'bar',label:'Conversions',data:top.map(a=>a.conversions),backgroundColor:'#4299e1',yAxisID:'y'},
+        {type:'line',label:'CPL (£)',data:top.map(a=>a.cpl),borderColor:'#e53e3e',backgroundColor:'rgba(229,62,62,.1)',yAxisID:'y2',tension:.3,pointRadius:4},
+      ]
+    },
+    options:{responsive:true,interaction:{mode:'index'},plugins:{legend:{position:'top'}},scales:{
+      y:{position:'left',title:{display:true,text:'Conversions'}},
+      y2:{position:'right',title:{display:true,text:'CPL (£)'},grid:{drawOnChartArea:false}},
+    }}
+  });
+
+  // Spend chart: by campaign if all, by ad if single
+  const spendData = currentCampaignId === 'all'
+    ? { labels: camps.map(c=>c.campaign_name.slice(0,20)), data: camps.map(c=>c.spend) }
+    : { labels: top.map(a=>a.name.slice(0,18)), data: top.map(a=>a.spend) };
+  spendChartInst = new Chart(document.getElementById('spendChart'), {
+    type:'doughnut',
+    data:{ labels: spendData.labels, datasets:[{data:spendData.data,backgroundColor:palette}] },
+    options:{responsive:true,plugins:{legend:{position:'right',labels:{font:{size:10}}}}}
+  });
+}
+
+function filterTable(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const camps = currentCampaignId === 'all' ? allCampaigns : allCampaigns.filter(c=>c.campaign_id===currentCampaignId);
+  renderTable(camps.flatMap(c=>c.ads||[]));
+}
+
+function renderTable(ads) {
+  const showCampCol = currentCampaignId === 'all';
+  const filtered = ads.filter(a =>
+    currentFilter==='all' ? true :
+    currentFilter==='active' ? a.status==='active' :
+    a.conversions > 0
+  );
+  // Show/hide campaign column
+  document.querySelectorAll('th:first-child, td:first-child').forEach(el => {
+    el.style.display = showCampCol ? '' : 'none';
+  });
+  document.getElementById('tableBody').innerHTML = filtered.map(a => `
+    <tr>
+      <td>${a.campaign_name||''}</td>
+      <td><strong>${a.name}</strong></td>
+      <td><span class="status-pill ${a.status}">${a.status}</span></td>
+      <td>£${a.spend.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td>${a.impressions.toLocaleString()}</td>
+      <td>${(a.ctr*100).toFixed(2)}%</td>
+      <td>${a.conversions}</td>
+      <td>${a.cpl!=null?'£'+a.cpl.toFixed(2):'—'}</td>
+      <td>${a.cpm!=null?'£'+a.cpm.toFixed(2):'—'}</td>
+    </tr>`).join('');
+}
+
+// Initial render — all campaigns
+selectCampaign('all', document.querySelector('.all-tab'));
+</script>
+</body>
+</html>
